@@ -9,8 +9,8 @@ COPY server.js ./
 COPY README.md ./
 
 ENV NODE_ENV=production
-ENV PORT=8000
+ENV PORT=8080
 
-EXPOSE 8000
+EXPOSE 8080
 
 CMD ["npm", "start"]
