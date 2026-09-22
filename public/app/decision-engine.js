@@ -579,12 +579,6 @@ export function validateDecisionResult(request, rawResult, metadata = {}) {
 
   const requiredCriteria = request.rules.requiredCriteria || [];
   if (requiredCriteria.length) {
-    const mentioned = new Set(
-      [...result.findings.map((item) => item.id), ...result.unmetCriteria.map((item) => item.id)].map((value) =>
-        String(value || "").toLowerCase(),
-      ),
-    );
-
     for (const criterion of request.rules.criteria || []) {
       const description = String(criterion.description || "").toLowerCase();
       const matches = [...result.findings, ...result.unmetCriteria].some((item) => {

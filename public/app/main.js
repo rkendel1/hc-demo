@@ -1,5 +1,5 @@
 import { buildDecisionRequest, demoScenarios, getPerspectiveById, getRequestParts, perspectives } from "./catalog.js";
-import { escapeHtml, parseDecisionPayload } from "./client-utils.js";
+import { escapeHtml, parseConfigPayload, parseDecisionPayload } from "./client-utils.js";
 
 const state = {
   config: null,
@@ -138,6 +138,16 @@ function prettyJson(value) {
   return JSON.stringify(value, null, 2);
 }
 
+function decisionStatusClass(status) {
+  const map = {
+    determined: "decision-determined",
+    uncertain: "decision-uncertain",
+    insufficient_evidence: "decision-insufficient_evidence",
+  };
+
+  return map[status] || "decision-uncertain";
+}
+
 function renderInspectors() {
   const parts = getRequestParts({
     perspectiveId: state.perspectiveId,
@@ -173,8 +183,14 @@ function renderResult() {
   }
 
   const result = state.result;
+  const parts = getRequestParts({
+    perspectiveId: state.perspectiveId,
+    questionId: state.questionId,
+    scenarioId: state.scenarioId,
+  });
+  const evidenceLookup = new Map(parts.evidence.map((item) => [item.id, item]));
   elements.resultView.innerHTML = `
-    <div class="decision-banner decision-${escapeHtml(result.status)}">
+    <div class="decision-banner ${decisionStatusClass(result.status)}">
       <div>
         <p class="eyebrow">Decision Result</p>
         <h3>${escapeHtml(result.decision.replaceAll("_", " ").toUpperCase())}</h3>
@@ -206,11 +222,7 @@ function renderResult() {
       <ul class="evidence-list">
         ${result.evidence
           .map((id) => {
-            const item = getRequestParts({
-              perspectiveId: state.perspectiveId,
-              questionId: state.questionId,
-              scenarioId: state.scenarioId,
-            }).evidence.find((entry) => entry.id === id);
+            const item = evidenceLookup.get(id);
             return item ? `<li><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.detail)}</span></li>` : "";
           })
           .join("")}
@@ -246,7 +258,7 @@ function renderResult() {
 
 async function fetchConfig() {
   const response = await fetch("/api/config");
-  state.config = await response.json();
+  state.config = parseConfigPayload(response, await response.json());
   elements.inferenceBadge.textContent = `Inference: ${state.config.modelName} (${state.config.provider})`;
 }
 
@@ -383,4 +395,10 @@ elements.runDecision.addEventListener("click", runDecision);
 elements.copyRequest.addEventListener("click", copyRequest);
 elements.compareRun.addEventListener("click", runCompare);
 
-fetchConfig().then(render);
+fetchConfig()
+  .catch((error) => {
+    state.config = { modelName: "unavailable", provider: "offline" };
+    state.resultError = `Portal configuration unavailable: ${error.message || "Unknown error."}`;
+    elements.inferenceBadge.textContent = "Inference: unavailable";
+  })
+  .then(render);

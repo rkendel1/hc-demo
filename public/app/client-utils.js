@@ -25,3 +25,15 @@ export function parseDecisionPayload(response, payload) {
 
   return payload;
 }
+
+export function parseConfigPayload(response, payload) {
+  if (!response.ok) {
+    throw new Error(`Configuration request failed with status ${response.status}.`);
+  }
+
+  if (!payload || typeof payload.modelName !== "string" || typeof payload.provider !== "string") {
+    throw new Error("Configuration response is invalid.");
+  }
+
+  return payload;
+}

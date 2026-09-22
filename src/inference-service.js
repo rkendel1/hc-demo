@@ -30,6 +30,30 @@ async function parseJsonResponse(response) {
   return response.json();
 }
 
+function normalizeOpenAIContent(content) {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") {
+          return part;
+        }
+
+        if (part && typeof part === "object" && typeof part.text === "string") {
+          return part.text;
+        }
+
+        return "";
+      })
+      .join("");
+  }
+
+  throw new Error("OpenAI-compatible response did not contain string content.");
+}
+
 class DemoDecisionInference {
   constructor(modelName) {
     this.modelName = modelName;
@@ -113,7 +137,7 @@ class OpenAICompatibleInference {
     });
 
     const payload = await parseJsonResponse(response);
-    const content = payload.choices?.[0]?.message?.content;
+    const content = normalizeOpenAIContent(payload.choices?.[0]?.message?.content);
     return JSON.parse(content);
   }
 }

@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDecisionService } from "./src/inference-service.js";
 
@@ -25,7 +25,16 @@ function json(response, statusCode, body) {
 async function serveStatic(pathname, response) {
   const safePath = normalize(pathname).replace(/^(\.\.[/\\])+/, "");
   const resolved = safePath === "/" ? "/index.html" : safePath;
-  const filePath = join(publicDir, resolved);
+  const filePath = resolve(publicDir, `.${resolved}`);
+  const publicRoot = `${resolve(publicDir)}${process.platform === "win32" ? "\\" : "/"}`;
+
+  if (filePath !== resolve(publicDir) && !filePath.startsWith(publicRoot)) {
+    const error = new Error("Not found");
+    error.statusCode = 404;
+    error.expose = true;
+    throw error;
+  }
+
   const file = await readFile(filePath);
   response.writeHead(200, { "Content-Type": mimeTypes[extname(filePath)] || "text/plain; charset=utf-8" });
   response.end(file);
