@@ -5,11 +5,11 @@ primary_region = "iad"
 
 [env]
   NODE_ENV = "production"
-  PORT = "3000"
+  PORT = "8000"
   JEV_PROVIDER = "demo"
 
 [http_service]
-  internal_port = 3000
+  internal_port = 8000
   force_https = true
   auto_stop_machines = "suspend"
   auto_start_machines = true
