@@ -6,15 +6,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build:runtime": "npm --prefix ../rust-ml-runtime/bindings/node run build",
     "test": "node --test --test-concurrency=1"
   },
-  "optionalDependencies": {
-    "@rust-ml-runtime/node": "file:../rust-ml-runtime/bindings/node"
+  "dependencies": {
+    "@rust-ml-runtime/node": "0.1.1"
   },
   "repository": {
     "type": "git",
-    "url": "http://localhost:26831/rkendel1/hc-demo"
+    "url": "http://github.com/rkendel1/hc-demo"
   },
   "keywords": [
     "jev",
