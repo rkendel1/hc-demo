@@ -1,0 +1,28 @@
+app = "hc-demo"
+primary_region = "iad"
+
+[env]
+JEV_PROVIDER = "demo"
+NODE_ENV = "production"
+PORT = "8000"
+
+[http_service]
+auto_start_machines = true
+auto_stop_machines = "suspend"
+force_https = true
+internal_port = 8_000
+min_machines_running = 0
+processes = [ "app" ]
+
+  [[http_service.checks]]
+  grace_period = "10s"
+  interval = "15s"
+  method = "get"
+  path = "/healthz"
+  timeout = "5s"
+
+[[vm]]
+cpu_kind = "shared"
+cpus = 1
+memory = "1gb"
+memory_mb = 256
