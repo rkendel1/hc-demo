@@ -13,7 +13,21 @@ try {
   installed = false;
 }
 
-test("portal endpoint executes through rust-ml-runtime and real local Laya", { skip: installed ? false : `install Laya under ${modelRoot}`, timeout: 120_000 }, async (context) => {
+let portalAlreadyRunning = false;
+try {
+  const response = await fetch("http://127.0.0.1:8000/healthz", { signal: AbortSignal.timeout(500) });
+  portalAlreadyRunning = response.ok;
+} catch {
+  portalAlreadyRunning = false;
+}
+
+const runtimeSkipReason = !installed
+  ? `install Laya under ${modelRoot}`
+  : portalAlreadyRunning
+    ? "stop the portal on port 8000 before running the isolated CoreML integration test"
+    : false;
+
+test("portal endpoint executes through rust-ml-runtime and real local Laya", { skip: runtimeSkipReason, timeout: 120_000 }, async (context) => {
   const port = 20_000 + Math.floor(Math.random() * 1_000);
   const origin = `http://127.0.0.1:${port}`;
   const child = spawn(process.execPath, ["server.js"], {
