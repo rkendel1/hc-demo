@@ -6,7 +6,7 @@ import { createDecisionService } from "./src/inference-service.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(__dirname, "public");
-const port = Number(process.env.PORT || 8080);
+const port = Number(process.env.PORT || 8000);
 const decisionService = createDecisionService(process.env);
 
 const mimeTypes = {
