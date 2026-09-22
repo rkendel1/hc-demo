@@ -9,7 +9,7 @@
     "build:runtime": "npm --prefix ../rust-ml-runtime/bindings/node run build",
     "test": "node --test --test-concurrency=1"
   },
-  "dependencies": {
+  "optionalDependencies": {
     "@rust-ml-runtime/node": "file:../rust-ml-runtime/bindings/node"
   },
   "repository": {
