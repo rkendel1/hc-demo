@@ -1,4 +1,5 @@
 import { buildDecisionRequest, demoScenarios, getPerspectiveById, getRequestParts, perspectives } from "./catalog.js";
+import { escapeHtml, parseDecisionPayload } from "./client-utils.js";
 
 const state = {
   config: null,
@@ -6,7 +7,9 @@ const state = {
   questionId: perspectives[0].questions[0].id,
   scenarioId: demoScenarios[0].id,
   result: null,
+  resultError: "",
   compareResults: [],
+  compareError: "",
 };
 
 const elements = {
@@ -115,18 +118,18 @@ function renderCaseSummary() {
     <div class="case-header">
       <div>
         <p class="eyebrow">CASE</p>
-        <h3>${scenario.title}</h3>
-        <p>${scenario.summary}</p>
+        <h3>${escapeHtml(scenario.title)}</h3>
+        <p>${escapeHtml(scenario.summary)}</p>
       </div>
-      <div class="status-pill">${scenario.expectedOutcome.replaceAll("_", " ")}</div>
+      <div class="status-pill">${escapeHtml(scenario.expectedOutcome.replaceAll("_", " "))}</div>
     </div>
     <div class="key-grid">
-      <div><span>Member</span><strong>${scenario.related.member.name}</strong></div>
-      <div><span>Plan</span><strong>${scenario.related.plan.name}</strong></div>
-      <div><span>Service</span><strong>${scenario.service.label}</strong></div>
-      <div><span>Diagnosis</span><strong>${scenario.diagnosis.code}</strong></div>
-      <div><span>Provider</span><strong>${scenario.related.provider.name}</strong></div>
-      <div><span>Date</span><strong>${scenario.serviceDate}</strong></div>
+      <div><span>Member</span><strong>${escapeHtml(scenario.related.member.name)}</strong></div>
+      <div><span>Plan</span><strong>${escapeHtml(scenario.related.plan.name)}</strong></div>
+      <div><span>Service</span><strong>${escapeHtml(scenario.service.label)}</strong></div>
+      <div><span>Diagnosis</span><strong>${escapeHtml(scenario.diagnosis.code)}</strong></div>
+      <div><span>Provider</span><strong>${escapeHtml(scenario.related.provider.name)}</strong></div>
+      <div><span>Date</span><strong>${escapeHtml(scenario.serviceDate)}</strong></div>
     </div>
   `;
 }
@@ -149,6 +152,16 @@ function renderInspectors() {
 }
 
 function renderResult() {
+  if (state.resultError) {
+    elements.resultView.innerHTML = `
+      <div class="empty-state">
+        <strong>Decision unavailable</strong>
+        <p>${escapeHtml(state.resultError)}</p>
+      </div>
+    `;
+    return;
+  }
+
   if (!state.result) {
     elements.resultView.innerHTML = `
       <div class="empty-state">
@@ -161,15 +174,15 @@ function renderResult() {
 
   const result = state.result;
   elements.resultView.innerHTML = `
-    <div class="decision-banner decision-${result.status}">
+    <div class="decision-banner decision-${escapeHtml(result.status)}">
       <div>
         <p class="eyebrow">Decision Result</p>
-        <h3>${result.decision.replaceAll("_", " ").toUpperCase()}</h3>
-        <p>${result.explanation}</p>
+        <h3>${escapeHtml(result.decision.replaceAll("_", " ").toUpperCase())}</h3>
+        <p>${escapeHtml(result.explanation)}</p>
       </div>
       <div class="banner-meta">
-        <span>Status: ${result.status.replaceAll("_", " ")}</span>
-        <span>Confidence: ${result.confidence ?? "n/a"}</span>
+        <span>Status: ${escapeHtml(result.status.replaceAll("_", " "))}</span>
+        <span>Confidence: ${escapeHtml(result.confidence ?? "n/a")}</span>
       </div>
     </div>
     <div class="result-section">
@@ -179,9 +192,9 @@ function renderResult() {
           .map(
             (item) => `
               <li>
-                <strong>${item.criterion}</strong>
-                <span>${item.result.replaceAll("_", " ")}</span>
-                ${item.detail ? `<small>${item.detail}</small>` : ""}
+                <strong>${escapeHtml(item.criterion)}</strong>
+                <span>${escapeHtml(item.result.replaceAll("_", " "))}</span>
+                ${item.detail ? `<small>${escapeHtml(item.detail)}</small>` : ""}
               </li>
             `,
           )
@@ -198,7 +211,7 @@ function renderResult() {
               questionId: state.questionId,
               scenarioId: state.scenarioId,
             }).evidence.find((entry) => entry.id === id);
-            return item ? `<li><strong>${item.label}</strong><span>${item.detail}</span></li>` : "";
+            return item ? `<li><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.detail)}</span></li>` : "";
           })
           .join("")}
       </ul>
@@ -213,8 +226,8 @@ function renderResult() {
               .map(
                 (item) => `
                   <li>
-                    <strong>${item.criterion}</strong>
-                    <span>${(item.missingEvidence || []).join(", ") || "Additional documentation required"}</span>
+                    <strong>${escapeHtml(item.criterion)}</strong>
+                    <span>${escapeHtml((item.missingEvidence || []).join(", ") || "Additional documentation required")}</span>
                   </li>
                 `,
               )
@@ -226,7 +239,7 @@ function renderResult() {
     }
     <div class="result-section">
       <h4>Next action</h4>
-      <p>${result.nextAction}</p>
+      <p>${escapeHtml(result.nextAction)}</p>
     </div>
   `;
 }
@@ -238,17 +251,28 @@ async function fetchConfig() {
 }
 
 async function runDecision() {
-  const request = selectedRequest();
-  const response = await fetch("/api/decide", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ request }),
-  });
-  state.result = await response.json();
+  state.resultError = "";
+  state.result = null;
+
+  try {
+    const request = selectedRequest();
+    const response = await fetch("/api/decide", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ request }),
+    });
+    const payload = await response.json();
+    state.result = parseDecisionPayload(response, payload);
+  } catch (error) {
+    state.resultError = error.message || "Unable to run decision.";
+  }
+
   renderResult();
 }
 
 async function runCompare() {
+  state.compareError = "";
+  state.compareResults = [];
   const comparePerspectives = ["provider", "member", "customer-service"];
   const coverageQuestion = {
     provider: "provider-coverage",
@@ -256,31 +280,47 @@ async function runCompare() {
     "customer-service": "cs-coverage",
   };
 
-  const responses = await Promise.all(
-    comparePerspectives.map(async (perspectiveId) => {
-      const request = buildDecisionRequest({
-        perspectiveId,
-        questionId: coverageQuestion[perspectiveId],
-        scenarioId: state.scenarioId,
-      });
-      const response = await fetch("/api/decide", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request }),
-      });
-      return {
-        perspective: getPerspectiveById(perspectiveId),
-        request,
-        result: await response.json(),
-      };
-    }),
-  );
+  try {
+    const responses = await Promise.all(
+      comparePerspectives.map(async (perspectiveId) => {
+        const request = buildDecisionRequest({
+          perspectiveId,
+          questionId: coverageQuestion[perspectiveId],
+          scenarioId: state.scenarioId,
+        });
+        const response = await fetch("/api/decide", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request }),
+        });
+        const payload = await response.json();
+        return {
+          perspective: getPerspectiveById(perspectiveId),
+          request,
+          result: parseDecisionPayload(response, payload),
+        };
+      }),
+    );
 
-  state.compareResults = responses;
+    state.compareResults = responses;
+  } catch (error) {
+    state.compareError = error.message || "Unable to run compare demo.";
+  }
+
   renderCompare();
 }
 
 function renderCompare() {
+  if (state.compareError) {
+    elements.compareView.innerHTML = `
+      <div class="empty-state">
+        <strong>Compare demo unavailable</strong>
+        <p>${escapeHtml(state.compareError)}</p>
+      </div>
+    `;
+    return;
+  }
+
   if (!state.compareResults.length) {
     elements.compareView.innerHTML = `
       <div class="empty-state">
@@ -297,22 +337,22 @@ function renderCompare() {
         <p class="eyebrow">JEV INFERENCE</p>
         <h3>ONE MODEL · 3 perspectives · 3 decision contexts</h3>
       </div>
-      <div class="status-pill">${state.config.modelName}</div>
+      <div class="status-pill">${escapeHtml(state.config.modelName)}</div>
     </div>
     <div class="compare-grid">
       ${state.compareResults
         .map(
           ({ perspective, request, result }) => `
             <article class="compare-card">
-              <h4>${perspective.label}</h4>
+              <h4>${escapeHtml(perspective.label)}</h4>
               <p class="compare-subtitle">Same question, perspective-specific context</p>
-              <pre>${prettyJson(request.context)}</pre>
+              <pre>${escapeHtml(prettyJson(request.context))}</pre>
               <div class="compare-outcome">
-                <strong>${result.decision.replaceAll("_", " ")}</strong>
-                <span>${result.status.replaceAll("_", " ")}</span>
+                <strong>${escapeHtml(result.decision.replaceAll("_", " "))}</strong>
+                <span>${escapeHtml(result.status.replaceAll("_", " "))}</span>
               </div>
-              <p>${result.explanation}</p>
-              <small>Next action: ${result.nextAction}</small>
+              <p>${escapeHtml(result.explanation)}</p>
+              <small>Next action: ${escapeHtml(result.nextAction)}</small>
             </article>
           `,
         )

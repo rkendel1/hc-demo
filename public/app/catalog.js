@@ -1,3 +1,5 @@
+import { getDecisionTypeDefinition } from "./decision-engine.js";
+
 export const perspectives = [
   {
     id: "provider",
@@ -527,7 +529,7 @@ export function getRequestParts({ perspectiveId, questionId, scenarioId }) {
     policy: scenario.related.policy,
     criteria: scenario.related.policy.criteria,
     requiredCriteria: scenario.related.policy.criteria.filter((item) => item.required !== false).map((item) => item.id),
-    allowedDecisions: question.decisionType,
+    allowedDecisions: getDecisionTypeDefinition()[question.decisionType].allowedDecisions,
   };
 
   return {

@@ -47,7 +47,7 @@ async function readBody(request) {
 
 const server = createServer(async (request, response) => {
   try {
-    const url = new URL(request.url, `http://${request.headers.host}`);
+    const url = new URL(request.url, "http://localhost");
 
     if (request.method === "GET" && url.pathname === "/api/config") {
       return json(response, 200, decisionService.describe());
