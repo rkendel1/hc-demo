@@ -1,0 +1,23 @@
+{
+  "name": "hc-demo",
+  "version": "1.0.0",
+  "description": "Jev Healthcare Decision Portal proof of concept",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://localhost:26831/rkendel1/hc-demo"
+  },
+  "keywords": [
+    "jev",
+    "healthcare",
+    "demo",
+    "decision-portal"
+  ],
+  "author": "",
+  "license": "ISC"
+}

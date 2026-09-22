@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jev Healthcare Decision Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Jev Healthcare Decisions</p>
+          <h1>One judgment capability. Many healthcare decisions.</h1>
+          <p class="hero-copy">
+            Synthetic Northstar Health Plan data only. This demonstration shows reusable structured decision
+            inference, not real-world healthcare, coverage, eligibility, clinical, or payment determinations.
+          </p>
+        </div>
+        <div class="hero-side">
+          <div class="model-badge" data-model-badge>Inference: loading…</div>
+          <div class="same-model-panel">
+            <p class="eyebrow">JEV INFERENCE</p>
+            <div class="same-model-pill">SAME MODEL</div>
+            <div class="same-model-branches">
+              <span>Provider context</span>
+              <span>Member context</span>
+              <span>Prior Auth context</span>
+            </div>
+            <small>Different structured judgments appear because the supplied context changes.</small>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Perspective Selector</p>
+              <h2>Choose the workflow</h2>
+            </div>
+          </div>
+          <div class="selector-grid" data-perspective-grid></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Question Selector</p>
+              <h2>What do you need to know?</h2>
+            </div>
+            <label class="scenario-picker">
+              Demo scenario
+              <select data-scenario-select></select>
+            </label>
+          </div>
+          <div class="chip-row" data-question-list></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Case Context</p>
+              <h2>Inspect what is being sent to Jev</h2>
+            </div>
+            <div class="button-row">
+              <button class="primary" data-run-decision>Run Decision</button>
+              <button class="secondary" data-copy-request>Copy Request</button>
+            </div>
+          </div>
+          <div data-case-summary></div>
+          <div class="inspect-grid">
+            <article>
+              <h3>View Context</h3>
+              <pre data-context-view></pre>
+            </article>
+            <article>
+              <h3>View Rules</h3>
+              <pre data-rules-view></pre>
+            </article>
+            <article>
+              <h3>View Evidence</h3>
+              <pre data-evidence-view></pre>
+            </article>
+            <article>
+              <h3>Decision Request</h3>
+              <pre data-request-view></pre>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Decision View</p>
+              <h2>Structured judgment output</h2>
+            </div>
+          </div>
+          <div data-result-view></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Compare Perspectives</p>
+              <h2>The same model, different decision contexts</h2>
+            </div>
+            <button class="secondary" data-run-compare>Run Compare Demo</button>
+          </div>
+          <div data-compare-view></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/app/main.js"></script>
+  </body>
+</html>
