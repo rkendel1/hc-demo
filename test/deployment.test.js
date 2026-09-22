@@ -7,3 +7,9 @@ test("Fly routes health checks to the server port", async () => {
 
   assert.match(config, /^\s*internal_port\s*=\s*8000\s*$/m);
 });
+
+test("the server listens on Fly's externally reachable interface", async () => {
+  const server = await readFile(new URL("../server.js", import.meta.url), "utf8");
+
+  assert.match(server, /server\.listen\(port, ["']0\.0\.0\.0["']/);
+});
