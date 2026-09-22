@@ -28,7 +28,7 @@ npm install
 npm start
 ```
 
-Then open `http://localhost:8000`.
+Then open `http://localhost:8080`.
 
 ## Deploy on Fly.io
 
