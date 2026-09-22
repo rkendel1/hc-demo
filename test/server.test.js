@@ -2,12 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const port = 18_000 + Math.floor(Math.random() * 1_000);
 const baseUrl = `http://127.0.0.1:${port}`;
 const server = spawn(process.execPath, ["server.js"], {
   cwd: new URL("..", import.meta.url),
-  env: { ...process.env, PORT: String(port) },
+  env: { ...process.env, PORT: String(port), ML_RUNTIME_MODEL_DIR: join(tmpdir(), "hc-demo-test-models-not-installed") },
   stdio: "ignore",
 });
 

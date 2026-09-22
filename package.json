@@ -6,7 +6,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "build:runtime": "npm --prefix ../rust-ml-runtime/bindings/node run build",
     "test": "node --test"
+  },
+  "dependencies": {
+    "@rust-ml-runtime/node": "file:../rust-ml-runtime/bindings/node"
   },
   "repository": {
     "type": "git",

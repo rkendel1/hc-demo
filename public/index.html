@@ -7,111 +7,76 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <header class="hero">
-        <div>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-mark" aria-hidden="true">J</div>
+        <div class="brand-copy">
           <p class="eyebrow">Jev Healthcare Decisions</p>
-          <h1>One judgment capability. Many healthcare decisions.</h1>
-          <p class="hero-copy">
-            Synthetic Northstar Health Plan data only. This demonstration shows reusable structured decision
-            inference, not real-world healthcare, coverage, eligibility, clinical, or payment determinations.
-          </p>
+          <h1>Decision workspace</h1>
         </div>
-        <div class="hero-side">
-          <div class="model-badge" data-model-badge>Inference: loading…</div>
-          <div class="same-model-panel">
-            <p class="eyebrow">JEV INFERENCE</p>
-            <div class="same-model-pill">SAME MODEL</div>
-            <div class="same-model-branches">
-              <span>Provider context</span>
-              <span>Member context</span>
-              <span>Prior Auth context</span>
-            </div>
-            <small>Different structured judgments appear because the supplied context changes.</small>
-          </div>
-        </div>
+        <p class="topbar-note">One inference model. Perspective-specific judgment.</p>
+        <div class="runtime-summary" data-runtime-panel>Loading local inference…</div>
       </header>
 
-      <main class="layout">
-        <section class="panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Perspective Selector</p>
-              <h2>Choose the workflow</h2>
-            </div>
+      <main class="decision-workspace">
+        <aside class="control-panel" aria-label="Decision controls">
+          <div class="panel-heading">
+            <div><p class="eyebrow">Configure</p><h2>Choose a demo</h2></div>
+            <span class="step-count">3 inputs</span>
           </div>
-          <div class="selector-grid" data-perspective-grid></div>
-        </section>
+          <div class="control-fields">
+            <label class="select-field"><span><b>1</b> Perspective</span><select data-perspective-select></select></label>
+            <label class="select-field"><span><b>2</b> Question</span><select data-question-select></select></label>
+            <label class="select-field"><span><b>3</b> Demo scenario</span><select data-scenario-select></select></label>
+          </div>
+          <div class="case-preview" data-case-summary></div>
+          <div class="action-row">
+            <button class="primary" data-run-decision><span data-run-label>Execute decision</span><span aria-hidden="true">→</span></button>
+            <button class="secondary" data-copy-request title="Copy the structured request">Copy request</button>
+          </div>
+          <button class="compare-button" data-run-compare>Compare the same question across perspectives</button>
+          <button class="trace-button" data-open-trace>View Laya request &amp; response</button>
+        </aside>
 
-        <section class="panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Question Selector</p>
-              <h2>What do you need to know?</h2>
-            </div>
-            <label class="scenario-picker">
-              Demo scenario
-              <select data-scenario-select></select>
-            </label>
+        <section class="result-panel" aria-live="polite" aria-busy="false">
+          <div class="result-heading">
+            <div><p class="eyebrow">Result</p><h2>Decision &amp; explanation</h2></div>
+            <div class="selected-context" data-selected-context></div>
           </div>
-          <div class="chip-row" data-question-list></div>
-        </section>
-
-        <section class="panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Case Context</p>
-              <h2>Inspect what is being sent to Jev</h2>
-            </div>
-            <div class="button-row">
-              <button class="primary" data-run-decision>Run Decision</button>
-              <button class="secondary" data-copy-request>Copy Request</button>
-            </div>
-          </div>
-          <div data-case-summary></div>
-          <div class="inspect-grid">
-            <article>
-              <h3>View Context</h3>
-              <pre data-context-view></pre>
-            </article>
-            <article>
-              <h3>View Rules</h3>
-              <pre data-rules-view></pre>
-            </article>
-            <article>
-              <h3>View Evidence</h3>
-              <pre data-evidence-view></pre>
-            </article>
-            <article>
-              <h3>Decision Request</h3>
-              <pre data-request-view></pre>
-            </article>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Decision View</p>
-              <h2>Structured judgment output</h2>
-            </div>
-          </div>
-          <div data-result-view></div>
-        </section>
-
-        <section class="panel">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Compare Perspectives</p>
-              <h2>The same model, different decision contexts</h2>
-            </div>
-            <button class="secondary" data-run-compare>Run Compare Demo</button>
-          </div>
-          <div data-compare-view></div>
+          <div class="result-view" data-result-view></div>
         </section>
       </main>
+
+      <footer class="disclaimer">Synthetic Northstar Health Plan data only — not a real healthcare, coverage, eligibility, clinical, or payment determination.</footer>
     </div>
 
+    <dialog class="compare-dialog" data-compare-dialog>
+      <div class="dialog-heading">
+        <div><p class="eyebrow">Same model · same decision type</p><h2 data-compare-title>Perspective comparison</h2></div>
+        <button class="dialog-close" data-close-compare aria-label="Close comparison">×</button>
+      </div>
+      <div class="compare-runtime" data-compare-runtime></div>
+      <div class="compare-view" data-compare-view></div>
+    </dialog>
+
+    <dialog class="trace-dialog" data-trace-dialog>
+      <div class="dialog-heading">
+        <div><p class="eyebrow">Local inference proof</p><h2>Native runtime trace</h2></div>
+        <button class="dialog-close" data-close-trace aria-label="Close runtime trace">×</button>
+      </div>
+      <div class="trace-meta" data-trace-meta></div>
+      <p class="trace-note">Edit the request JSON to test different model inputs. “Run this request” sends the exact edited payload to <code>LocalDecisionModel.decideJson</code>. Healthcare rules still validate the final workflow result.</p>
+      <div class="trace-grid">
+        <article>
+          <div class="trace-card-heading"><h3>Request sent to Laya <span>Editable</span></h3><div><button data-reset-trace-request>Reset</button><button data-copy-trace-request>Copy</button><button class="run-trace" data-run-trace>Run this request</button></div></div>
+          <textarea data-request-view spellcheck="false" aria-label="Editable Laya request JSON"></textarea>
+        </article>
+        <article>
+          <div class="trace-card-heading"><h3>Response from Laya</h3><button data-copy-trace-response>Copy response</button></div>
+          <pre data-response-view></pre>
+        </article>
+      </div>
+    </dialog>
     <script type="module" src="/app/main.js"></script>
   </body>
 </html>

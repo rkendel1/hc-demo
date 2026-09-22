@@ -5,10 +5,10 @@ import { parseConfigPayload } from "../public/app/client-utils.js";
 test("parseConfigPayload returns valid config responses", () => {
   const payload = parseConfigPayload(
     { ok: true, status: 200 },
-    { provider: "demo", modelName: "northstar-demo-logic" },
+    { provider: "rust-ml-runtime", modelName: "Laya", runtime: "rust-ml-runtime", execution: "Local" },
   );
 
-  assert.equal(payload.provider, "demo");
+  assert.equal(payload.provider, "rust-ml-runtime");
 });
 
 test("parseConfigPayload throws for config fetch failures", () => {

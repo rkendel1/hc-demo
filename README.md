@@ -1,106 +1,96 @@
 # Jev Healthcare Decision Portal
 
-A polished proof-of-concept portal that demonstrates Jev's core idea: the **same inference capability** can perform many bounded healthcare judgments when each request includes the question, contract, rules, evidence, and context needed for the decision.
+A local inference demonstration of one Laya model serving many bounded healthcare judgments. The healthcare application prepares perspective-specific context and evidence; `rust-ml-runtime` owns model discovery, integrity validation, loading, Core ML execution, and typed inference output.
 
-## What this demo includes
+All healthcare data is fictional Northstar Health Plan data. This is not a real coverage, eligibility, clinical, or payment system.
 
-- Five healthcare perspectives: Provider, Member, Prior Authorization, Customer Service, and Enrollment
-- Self-contained `DecisionRequest` payload inspection before inference
-- Structured `DecisionResult` responses with findings, evidence, missing information, and next actions
-- Synthetic Northstar Health Plan data only
-- Scripted demo scenarios covering:
-  - covered
-  - missing evidence
-  - not covered
-  - not eligible
-  - ambiguous / human review
-- Compare Perspectives mode showing the same question answered by the same model with different contexts
-- Pluggable inference layer that works with:
-  - built-in deterministic demo inference
-  - Jev-compatible HTTP inference endpoints
-  - local Ollama models
-  - OpenAI-compatible local endpoints (for tools such as LM Studio or llama.cpp-compatible servers)
+## Architecture
 
-## Run locally
+```text
+HealthcareDecisionService
+  → DecisionInference (RustMlRuntimeInference)
+    → @rust-ml-runtime/node (thin native boundary)
+      → ml-runtime reusable Rust crate
+        → installed Laya package
+          → Core ML
+```
+
+There is no deterministic production inference provider, cloud LLM provider, Python process, or direct Core ML integration in this application. If Laya or the runtime is unavailable, `/api/decide` returns an explicit error.
+
+The sibling runtime repository remains responsible for model registry and installation, checksums, storage, compiled caches, model loading, Core ML, and its normalized typed result. This repository owns synthetic healthcare data, policies, questions, perspectives, compact context assembly, evidence selection, result guardrails, and presentation.
+
+## Prerequisites
+
+- macOS with Core ML
+- Rust toolchain
+- Node.js 22+
+- `rust-ml-runtime` checked out beside this repository during development
+
+Expected development layout:
+
+```text
+Desktop/
+  hc-demo/
+  rust-ml-runtime/
+```
+
+The application consumes the runtime's package boundary through the local `@rust-ml-runtime/node` dependency. That native package depends on the reusable `ml-runtime` Rust crate with its `coreml` feature.
+
+## Install and run
+
+Build the runtime CLI and native application boundary:
 
 ```bash
+cd ../rust-ml-runtime
+cargo build --release -p ml-runtime-cli
+cd ../hc-demo
 npm install
+npm run build:runtime
+```
+
+Install the pinned Laya distribution into the runtime-owned default model directory:
+
+```bash
+../rust-ml-runtime/target/release/ml-runtime model install laya
 npm start
 ```
 
-Then open `http://localhost:8000`.
-
-## Deploy on Fly.io
-
-This repo now includes:
-
-- `Dockerfile` for a containerized deployment
-- `fly.toml` with HTTP service and health check configuration
-- `/healthz` for Fly health checks
-
-Deploy with:
+For offline development with the checked-out Laya package, use a repository-local ignored model directory:
 
 ```bash
-fly launch --copy-config --no-deploy
-fly deploy
+../rust-ml-runtime/target/release/ml-runtime model install laya \
+  --source ../rust-ml-runtime/models/laya \
+  --models .models
+
+npm start
 ```
 
-If the default Fly app name in `fly.toml` is already taken, update the `app` value before deploying.
+The development server automatically uses `.models` when that directory exists. `ML_RUNTIME_MODEL_DIR` can still select a different runtime-owned model root explicitly.
 
-## Test
+Open `http://localhost:8000`.
+
+Initial Core ML compilation can make the first startup take about a minute. Subsequent executions reuse runtime-managed compiled state.
+
+## What the portal demonstrates
+
+- Provider, Member, Broker, and Employer perspectives with audience-specific questions
+- Six scenarios spanning eligible, not eligible, covered, excluded, missing evidence, conflicting evidence, paid, pending, and denied outcomes
+- Noul, Choice, and Score typed Laya decisions
+- Compact, self-contained inference requests instead of raw healthcare records
+- Explicit evidence, findings, missing information, and next action
+- Explicit `determined`, `insufficient_evidence`, and `uncertain` statuses
+- Runtime diagnostics: Laya, `rust-ml-runtime`, local execution, Core ML, installation state
+- A same eligibility comparison across Provider, Member, Broker, and Employer contexts
+- One model identifier across every workflow
+
+## Tests
 
 ```bash
 npm test
 ```
 
-## Inference providers
+Unit tests verify healthcare-to-Laya request preparation and typed output interpretation. When Laya is installed under `ML_RUNTIME_MODEL_DIR` or `.models`, the integration test starts the real portal, calls its decision endpoint, executes the installed Laya model through `rust-ml-runtime` and Core ML, and validates the structured API result. It does not replace inference with a fixture.
 
-The app defaults to a deterministic demo engine so the portal always works out of the box.
+## Failure behavior
 
-### Demo provider
-
-```bash
-JEV_PROVIDER=demo npm start
-```
-
-### Jev-compatible provider
-
-```bash
-JEV_PROVIDER=jev \
-JEV_API_URL=http://localhost:4000/decide \
-JEV_API_KEY=optional-token \
-JEV_MODEL_NAME=jev-health-model \
-npm start
-```
-
-The Jev endpoint is expected to accept the portal's `DecisionRequest` JSON and return a `DecisionResult` JSON object.
-
-### Ollama
-
-```bash
-JEV_PROVIDER=ollama \
-OLLAMA_MODEL=llama3.1 \
-OLLAMA_API_URL=http://127.0.0.1:11434 \
-npm start
-```
-
-### OpenAI-compatible local endpoint
-
-```bash
-JEV_PROVIDER=openai-compatible \
-OPENAI_COMPAT_BASE_URL=http://127.0.0.1:1234/v1 \
-OPENAI_COMPAT_MODEL=local-model \
-OPENAI_COMPAT_API_KEY=optional-key \
-npm start
-```
-
-## Screenshots
-
-Screenshots for the portal experience are stored in `screenshots/`:
-
-- `screenshots/portal-overview.png`
-- `screenshots/portal-compare.png`
-
-## Safety framing
-
-This application uses synthetic healthcare data and policies for demonstration only. It is **not** intended to make real-world healthcare, coverage, eligibility, clinical, or payment determinations.
+The application fails closed for missing models, integrity errors, runtime failures, invalid model output, and invalid decision schemas. Missing or conflicting healthcare evidence remains an explicit insufficient-evidence or human-review result; it is never silently forced into yes/no and never sent to a cloud fallback.

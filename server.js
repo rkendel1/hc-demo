@@ -7,7 +7,7 @@ import { createDecisionService } from "./src/inference-service.js";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(__dirname, "public");
 const port = Number(process.env.PORT || 8000);
-const decisionService = createDecisionService(process.env);
+let decisionService;
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -68,7 +68,7 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "POST" && url.pathname === "/api/decide") {
       const body = await readBody(request);
-      const result = await decisionService.decide(body.request);
+      const result = await decisionService.decide(body.request, body.inferenceRequestOverride);
       return json(response, 200, result);
     }
 
@@ -85,5 +85,20 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, "0.0.0.0", () => {
+  console.log("Loading local Laya model through rust-ml-runtime…");
+  decisionService = createDecisionService(process.env);
   console.log(`Jev Healthcare Decision Portal running at http://localhost:${port}`);
+  decisionService.ready().then(() => {
+    const runtimeDescription = decisionService.describe();
+    console.log(`Local inference ready: ${runtimeDescription.modelName} · ${runtimeDescription.backend} · ${runtimeDescription.modelIdentifier}`);
+  }).catch((error) => console.error(`Local inference unavailable: ${error.message}`));
+});
+
+server.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(`Port ${port} is already in use. Stop the existing portal process or set a different PORT.`);
+  } else {
+    console.error(`Portal server failed: ${error.message}`);
+  }
+  process.exitCode = 1;
 });

@@ -6,8 +6,29 @@ const decisionTypeDefinition = {
   claim_submission: { allowedDecisions: ["can_submit", "cannot_submit", "pending_information"] },
   claim_explanation: { allowedDecisions: ["claim_approved", "claim_denied", "claim_pending", "human_review"] },
   eligibility: { allowedDecisions: ["eligible", "not_eligible", "human_review"] },
-  enrollment_validation: { allowedDecisions: ["valid", "invalid", "human_review"] },
+  enrollment_completion: { allowedDecisions: ["complete", "incomplete", "human_review"] },
+  plan_selection: {
+    allowedDecisions: [
+      "northstar_gold_plus",
+      "northstar_silver_select",
+      "northstar_bronze_saver",
+      "no_applicable_plan",
+      "human_review",
+    ],
+  },
+  conflict_check: { allowedDecisions: ["conflict_found", "no_conflict"] },
+  enrollment_review: { allowedDecisions: ["review_required", "review_not_required"] },
   documentation_sufficiency: { allowedDecisions: ["sufficient", "insufficient", "human_review"] },
+  next_action: {
+    allowedDecisions: [
+      "proceed",
+      "submit_prior_authorization",
+      "request_information",
+      "contact_enrollment_support",
+      "discuss_alternatives",
+      "human_review",
+    ],
+  },
   human_review: { allowedDecisions: ["review_required", "review_not_required"] },
 };
 
@@ -190,7 +211,11 @@ function coverageAssessment(request) {
     return result;
   }
 
-  const duration = request.context.clinicalDocumentation?.conservativeTreatmentWeeks ?? request.context.clinicalEvidence?.conservativeTreatmentWeeks;
+  const documentedDuration = clinicalEvidence?.detail?.match(/duration\s+(\d+)\s+weeks?/i)?.[1];
+  const duration =
+    request.context.clinicalDocumentation?.conservativeTreatmentWeeks ??
+    request.context.clinicalEvidence?.conservativeTreatmentWeeks ??
+    (documentedDuration ? Number(documentedDuration) : null);
   const durationEvidenceId = clinicalEvidence?.id;
   if (policy.policyId === "MRI-KNEE-2026") {
     if (duration == null) {
@@ -244,30 +269,19 @@ function coverageAssessment(request) {
 }
 
 function priorAuthorizationAssessment(request) {
-  const coverage = coverageAssessment(request);
-  const result = baseResult("not_required", coverage.status, "Prior authorization requirement determined from the supplied policy.");
-  result.findings = [...coverage.findings];
-  result.unmetCriteria = [...coverage.unmetCriteria];
-  result.evidence = [...coverage.evidence];
-
-  if (coverage.status === "uncertain") {
-    result.decision = "human_review";
-    result.status = "uncertain";
-    result.nextAction = "Resolve conflicting evidence before deciding prior authorization";
-    result.explanation = "Conflicting request data prevents a reliable prior authorization determination.";
-    return result;
-  }
-
-  if (coverage.findings.some((item) => item.criterion === "Member eligible" && item.result !== "satisfied")) {
-    result.decision = request.rules.policy.priorAuthorization ? "required" : "not_required";
-    result.status = coverage.status;
-    result.nextAction = coverage.nextAction;
-    result.explanation = coverage.explanation;
-    return result;
-  }
-
-  result.decision = request.rules.policy.priorAuthorization ? "required" : "not_required";
-  result.status = coverage.status;
+  const required = Boolean(request.rules.policy.priorAuthorization);
+  const policyEvidence = request.evidence.find((item) => item.kind === "policy")?.id;
+  const benefitEvidence = request.evidence.find((item) => item.kind === "benefit")?.id;
+  const result = baseResult(required ? "required" : "not_required", "determined", "Prior authorization requirement determined from the supplied policy.");
+  result.findings.push(
+    finding(
+      "prior-authorization-requirement",
+      "Prior authorization required by policy",
+      required ? "satisfied" : "not_satisfied",
+      [policyEvidence, benefitEvidence].filter(Boolean),
+    ),
+  );
+  result.evidence = [policyEvidence, benefitEvidence].filter(Boolean);
   result.nextAction = request.rules.policy.priorAuthorization ? "Submit or continue prior authorization review" : "No prior authorization is required";
   result.explanation = request.rules.policy.priorAuthorization
     ? "The supplied policy requires prior authorization for this service."
@@ -366,6 +380,14 @@ function claimSubmissionAssessment(request) {
     return result;
   }
 
+  if (completeness.findings.some((item) => item.criterion === "Service covered by policy" && item.result === "not_satisfied")) {
+    result.decision = "cannot_submit";
+    result.status = "determined";
+    result.nextAction = "Do not submit a claim for the excluded service";
+    result.explanation = request.rules.policy.exclusionReason || "The service is excluded by the supplied policy.";
+    return result;
+  }
+
   const priorAuth = priorAuthorizationAssessment(request);
   if (priorAuth.decision === "required" && request.context.priorAuthorization?.status !== "approved_pending_validation") {
     result.decision = "pending_information";
@@ -409,6 +431,14 @@ function claimExplanationAssessment(request) {
     result.status = "insufficient_evidence";
     result.nextAction = coverage.nextAction || "Request missing information";
     result.explanation = coverage.explanation;
+    return result;
+  }
+
+  if (claim.status === "pending") {
+    result.decision = "claim_pending";
+    result.status = "determined";
+    result.nextAction = "Tell the member the claim is still being processed";
+    result.explanation = "The supplied claim record is pending; it has not been approved or denied.";
     return result;
   }
 
@@ -462,32 +492,84 @@ function eligibilityAssessment(request) {
   return result;
 }
 
-function enrollmentValidationAssessment(request) {
+function enrollmentCompletionAssessment(request) {
   const eligibility = eligibilityAssessment(request);
-  const result = baseResult("valid", eligibility.status, eligibility.explanation);
+  const result = baseResult("complete", eligibility.status, eligibility.explanation);
   result.findings = [...eligibility.findings];
   result.unmetCriteria = [...eligibility.unmetCriteria];
   result.evidence = [...eligibility.evidence];
 
-  if (request.context.conflicts?.length) {
-    result.decision = "human_review";
-    result.status = "uncertain";
-    result.findings.push(finding("enrollment-conflict", "Conflicting enrollment information", "inconclusive", []));
-    result.nextAction = "Resolve enrollment conflicts manually";
-    result.explanation = "The enrollment record contains conflicting information that requires manual resolution.";
-    return result;
-  }
-
   if (eligibility.decision !== "eligible") {
-    result.decision = "invalid";
+    result.decision = "incomplete";
     result.nextAction = eligibility.nextAction;
     result.explanation = eligibility.explanation;
     return result;
   }
 
-  result.decision = "valid";
+  result.decision = "complete";
   result.status = "determined";
   result.nextAction = "Enrollment is complete";
+  return result;
+}
+
+function planSelectionAssessment(request) {
+  const eligibility = eligibilityAssessment(request);
+  const result = baseResult("no_applicable_plan", eligibility.status, eligibility.explanation);
+  result.findings = [...eligibility.findings];
+  result.unmetCriteria = [...eligibility.unmetCriteria];
+  result.evidence = [...eligibility.evidence];
+
+  if (eligibility.decision !== "eligible") {
+    result.decision = "no_applicable_plan";
+    result.nextAction = eligibility.nextAction;
+    result.explanation = "No plan applies on the service date because the member is not actively enrolled.";
+    return result;
+  }
+
+  const planName = request.context.plan?.name || request.rules.plan?.name;
+  const planDecision = String(planName || "").toLowerCase().replaceAll(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  result.decision = planDecision;
+  result.status = "determined";
+  result.nextAction = `Use ${planName} for this request`;
+  result.explanation = `${planName} is the member's active plan on the service date.`;
+  return result;
+}
+
+function conflictCheckAssessment(request) {
+  const conflicts = request.context.conflicts || [];
+  const conflictEvidence = request.evidence.find((item) => item.kind === "conflict")?.id;
+  const hasConflict = conflicts.length > 0;
+  const result = baseResult(
+    hasConflict ? "conflict_found" : "no_conflict",
+    "determined",
+    hasConflict ? `Conflicting information was found: ${conflicts.join("; ")}` : "No conflicting information was found in the supplied record.",
+  );
+  result.findings.push(
+    finding("conflict-check", "Conflicting information", hasConflict ? "not_satisfied" : "satisfied", [conflictEvidence].filter(Boolean)),
+  );
+  result.evidence = [conflictEvidence].filter(Boolean);
+  result.nextAction = hasConflict ? "Resolve the identified conflict before continuing" : "No conflict resolution is required";
+  return result;
+}
+
+function enrollmentReviewAssessment(request) {
+  const eligibility = eligibilityAssessment(request);
+  const conflicts = request.context.conflicts || [];
+  const conflictEvidence = request.evidence.find((item) => item.kind === "conflict")?.id;
+  const reviewRequired = eligibility.status === "insufficient_evidence" || conflicts.length > 0;
+  const result = baseResult(
+    reviewRequired ? "review_required" : "review_not_required",
+    eligibility.status === "insufficient_evidence" ? "insufficient_evidence" : "determined",
+    reviewRequired
+      ? conflicts.length
+        ? `Manual review is required to resolve: ${conflicts.join("; ")}`
+        : "Manual review is required because the enrollment record is incomplete."
+      : "The enrollment record does not contain a conflict or missing eligibility evidence that requires manual review.",
+  );
+  result.findings = [...eligibility.findings];
+  result.unmetCriteria = [...eligibility.unmetCriteria];
+  result.evidence = [...new Set([...eligibility.evidence, ...(conflicts.length && conflictEvidence ? [conflictEvidence] : [])])];
+  result.nextAction = reviewRequired ? "Route the enrollment record to a human reviewer" : eligibility.nextAction;
   return result;
 }
 
@@ -513,6 +595,31 @@ function humanReviewAssessment(request) {
   return result;
 }
 
+function nextActionAssessment(request) {
+  const coverage = coverageAssessment(request);
+  let decision;
+  if (coverage.status === "insufficient_evidence") decision = "request_information";
+  else if (coverage.status === "uncertain" || coverage.decision === "human_review") decision = "human_review";
+  else if (coverage.decision === "not_covered" && /enrollment|eligible/i.test(coverage.explanation)) decision = "contact_enrollment_support";
+  else if (coverage.decision === "not_covered") decision = "discuss_alternatives";
+  else if (request.rules.policy.priorAuthorization) decision = "submit_prior_authorization";
+  else decision = "proceed";
+
+  return {
+    ...coverage,
+    decision,
+    explanation: coverage.explanation,
+    nextAction: {
+      proceed: "Proceed with the service or claim workflow",
+      submit_prior_authorization: "Submit the required prior authorization",
+      request_information: coverage.nextAction || "Request the missing information",
+      contact_enrollment_support: "Contact enrollment support about inactive coverage",
+      discuss_alternatives: "Discuss covered alternatives with the plan or provider",
+      human_review: "Route the case to a human reviewer",
+    }[decision],
+  };
+}
+
 const evaluators = {
   coverage: coverageAssessment,
   prior_authorization_required: priorAuthorizationAssessment,
@@ -521,8 +628,12 @@ const evaluators = {
   claim_submission: claimSubmissionAssessment,
   claim_explanation: claimExplanationAssessment,
   eligibility: eligibilityAssessment,
-  enrollment_validation: enrollmentValidationAssessment,
+  enrollment_completion: enrollmentCompletionAssessment,
+  plan_selection: planSelectionAssessment,
+  conflict_check: conflictCheckAssessment,
+  enrollment_review: enrollmentReviewAssessment,
   documentation_sufficiency: documentationSufficiencyAssessment,
+  next_action: nextActionAssessment,
   human_review: humanReviewAssessment,
 };
 
@@ -549,8 +660,8 @@ export function validateDecisionResult(request, rawResult, metadata = {}) {
     evidence: Array.isArray(rawResult.evidence) ? rawResult.evidence : [],
     nextAction: typeof rawResult.nextAction === "string" ? rawResult.nextAction : "",
     explanation: typeof rawResult.explanation === "string" ? rawResult.explanation : "",
-    provider: metadata.provider || "demo",
-    model: metadata.model || "northstar-demo-logic",
+    provider: metadata.provider || "healthcare-application",
+    model: metadata.model || "unspecified",
     decisionType: request.decision.type,
   };
 
@@ -577,8 +688,18 @@ export function validateDecisionResult(request, rawResult, metadata = {}) {
     }
   }
 
+  const criteriaAwareDecisionTypes = new Set([
+    "coverage",
+    "prior_authorization_criteria",
+    "claim_completeness",
+    "claim_submission",
+    "claim_explanation",
+    "documentation_sufficiency",
+    "next_action",
+    "human_review",
+  ]);
   const requiredCriteria = request.rules.requiredCriteria || [];
-  if (requiredCriteria.length) {
+  if (criteriaAwareDecisionTypes.has(request.decision.type) && requiredCriteria.length) {
     for (const criterion of request.rules.criteria || []) {
       const description = String(criterion.description || "").toLowerCase();
       const matches = [...result.findings, ...result.unmetCriteria].some((item) => {
@@ -603,54 +724,4 @@ export function validateDecisionResult(request, rawResult, metadata = {}) {
   }
 
   return result;
-}
-
-export function safeDecisionFallback(request, error, metadata = {}) {
-  return {
-    decision:
-      request.decision.type === "human_review"
-        ? "review_required"
-        : request.decision.type === "eligibility"
-          ? "human_review"
-          : "human_review",
-    status: "uncertain",
-    confidence: 0.12,
-    findings: [
-      {
-        id: "validation-fallback",
-        criterion: "Structured response validation",
-        result: "failed",
-        evidence: [],
-        detail: error.message,
-      },
-    ],
-    unmetCriteria: [],
-    evidence: [],
-    nextAction: "Route this case to a human reviewer",
-    explanation: "The inference output failed validation, so the application rejected it and routed the case to human review.",
-    provider: metadata.provider || "demo",
-    model: metadata.model || "northstar-demo-logic",
-    decisionType: request.decision.type,
-  };
-}
-
-export function buildModelPrompt(request) {
-  return `
-You are a healthcare decision inference engine for synthetic demonstration data.
-Return JSON only.
-
-Rules:
-- Use only the supplied request.
-- Do not invent evidence.
-- If information is missing, set status to "insufficient_evidence".
-- If evidence conflicts, set status to "uncertain".
-- Decision type: ${request.decision.type}
-- Allowed decisions: ${decisionTypeDefinition[request.decision.type].allowedDecisions.join(", ")}
-
-DecisionRequest:
-${JSON.stringify(request, null, 2)}
-
-Return a JSON object with:
-decision, status, confidence, findings, unmetCriteria, evidence, nextAction, explanation
-  `.trim();
 }

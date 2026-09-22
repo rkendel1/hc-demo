@@ -6,11 +6,14 @@ export const perspectives = [
     label: "Provider",
     summary: "Clinical and claim-readiness questions",
     questions: [
+      ["provider-eligibility", "Is this member eligible on the service date?", "eligibility"],
       ["provider-coverage", "Is this service covered?", "coverage"],
       ["provider-prior-auth", "Is prior authorization required?", "prior_authorization_required"],
       ["provider-documentation", "Is my documentation sufficient?", "documentation_sufficiency"],
+      ["provider-criteria", "Does this request satisfy the clinical criteria?", "prior_authorization_criteria"],
       ["provider-missing-information", "What information is missing?", "claim_completeness"],
       ["provider-claim-submit", "Can I submit this claim?", "claim_submission"],
+      ["provider-human-review", "Should this case be clinically reviewed by a human?", "human_review"],
     ],
   },
   {
@@ -18,46 +21,35 @@ export const perspectives = [
     label: "Member",
     summary: "Coverage and next-step guidance with member-safe context",
     questions: [
+      ["member-eligibility", "Am I eligible for benefits?", "eligibility"],
       ["member-coverage", "Is this service covered?", "coverage"],
       ["member-prior-auth", "Is prior authorization required?", "prior_authorization_required"],
-      ["member-claim-denied", "Why was this claim denied?", "claim_explanation"],
-      ["member-next-step", "What will I need to do next?", "human_review"],
+      ["member-claim-status", "What is the status of my claim?", "claim_explanation"],
+      ["member-next-step", "What will I need to do next?", "next_action"],
     ],
   },
   {
-    id: "prior-auth",
-    label: "Prior Authorization",
-    summary: "Criteria checks and evidence sufficiency",
+    id: "broker",
+    label: "Broker",
+    summary: "Plan selection, eligibility, and member guidance",
     questions: [
-      ["pa-required", "Is prior authorization required?", "prior_authorization_required"],
-      ["pa-criteria", "Does this request satisfy the criteria?", "prior_authorization_criteria"],
-      ["pa-unmet", "Which criteria are unmet?", "prior_authorization_criteria"],
-      ["pa-evidence", "Is the evidence sufficient?", "documentation_sufficiency"],
-      ["pa-human-review", "Should this case be reviewed by a human?", "human_review"],
+      ["broker-eligibility", "Is this member eligible under the selected plan?", "eligibility"],
+      ["broker-plan", "Which plan is active?", "plan_selection"],
+      ["broker-coverage", "Is this service covered under the plan?", "coverage"],
+      ["broker-prior-auth", "Does this service require prior authorization?", "prior_authorization_required"],
+      ["broker-next-step", "What should I advise the member to do next?", "next_action"],
     ],
   },
   {
-    id: "customer-service",
-    label: "Customer Service",
-    summary: "Explain claims and recommend actions",
+    id: "employer",
+    label: "Employer",
+    summary: "Employee eligibility and enrollment administration",
     questions: [
-      ["cs-rejected", "Why was this claim rejected?", "claim_explanation"],
-      ["cs-coverage", "Is this service covered?", "coverage"],
-      ["cs-missing", "What information is missing?", "claim_completeness"],
-      ["cs-tell-member", "What should I tell the member?", "claim_explanation"],
-      ["cs-action", "What action should I take?", "human_review"],
-    ],
-  },
-  {
-    id: "enrollment",
-    label: "Enrollment",
-    summary: "Eligibility and enrollment validation",
-    questions: [
-      ["enrollment-eligible", "Is this member eligible?", "eligibility"],
-      ["enrollment-complete", "Is enrollment complete?", "enrollment_validation"],
-      ["enrollment-plan", "Which plan applies?", "enrollment_validation"],
-      ["enrollment-conflict", "Is there conflicting information?", "enrollment_validation"],
-      ["enrollment-review", "Does this require manual review?", "human_review"],
+      ["employer-eligibility", "Is this employee eligible for benefits?", "eligibility"],
+      ["employer-complete", "Is the employee's enrollment complete for the service date?", "enrollment_completion"],
+      ["employer-plan", "Which plan is active for this employee?", "plan_selection"],
+      ["employer-conflict", "Is there conflicting enrollment information?", "conflict_check"],
+      ["employer-review", "Does this enrollment record require manual review?", "enrollment_review"],
     ],
   },
 ].map((perspective) => ({
@@ -201,7 +193,7 @@ export const syntheticDomain = {
 const scenarioBase = [
   {
     id: "scenario-a",
-    title: "Scenario A — Covered",
+    title: "Scenario A — Covered + PA Required",
     summary: "MRI is covered and all criteria are satisfied.",
     expectedOutcome: "covered",
     memberId: "M-1001",
@@ -226,7 +218,7 @@ const scenarioBase = [
   },
   {
     id: "scenario-b",
-    title: "Scenario B — Missing Evidence",
+    title: "Scenario B — Missing Clinical Evidence",
     summary: "MRI may be covered, but conservative treatment duration is missing.",
     expectedOutcome: "insufficient_evidence",
     memberId: "M-1002",
@@ -251,7 +243,7 @@ const scenarioBase = [
   },
   {
     id: "scenario-c",
-    title: "Scenario C — Not Covered",
+    title: "Scenario C — Benefit Exclusion",
     summary: "Service is explicitly excluded from plan benefits.",
     expectedOutcome: "not_covered",
     memberId: "M-1003",
@@ -276,7 +268,7 @@ const scenarioBase = [
   },
   {
     id: "scenario-d",
-    title: "Scenario D — Eligibility",
+    title: "Scenario D — Not Eligible",
     summary: "Member enrollment ended before the date of service.",
     expectedOutcome: "not_eligible",
     memberId: "M-1004",
@@ -301,7 +293,7 @@ const scenarioBase = [
   },
   {
     id: "scenario-e",
-    title: "Scenario E — Ambiguous",
+    title: "Scenario E — Conflicting Evidence",
     summary: "Conflicting evidence makes the case uncertain and suitable for human review.",
     expectedOutcome: "uncertain",
     memberId: "M-1005",
@@ -323,6 +315,31 @@ const scenarioBase = [
     claim: { status: "rejected", rejectionReason: "Ordering provider conflict", history: ["Provider NPI mismatch", "Manual review recommended"] },
     priorAuthorization: { submitted: true, status: "approved_pending_validation" },
     conflicts: ["Ordering provider on claim differs from clinical note", "Network status varies across supplied documents"],
+  },
+  {
+    id: "scenario-f",
+    title: "Scenario F — Eligible + Paid Claim",
+    summary: "Enrollment is active, the service is covered without prior authorization, and the claim is paid.",
+    expectedOutcome: "eligible",
+    memberId: "M-1007",
+    providerId: "P-206",
+    claimId: "CL-3007",
+    planId: "bronze-saver",
+    serviceDate: "2026-08-12",
+    service: { code: "PHYSICAL_THERAPY", label: "Physical therapy", placeOfService: "Outpatient Therapy" },
+    diagnosis: { code: "M54.50", label: "Low back pain, unspecified" },
+    policyId: "PT-LOW-BACK-2026",
+    enrollment: { effectiveFrom: "2026-01-01", effectiveTo: "2026-12-31", status: "active" },
+    benefits: { deductibleMet: true, coinsurance: "20%", priorAuthRequired: false },
+    clinical: {
+      symptoms: "Low back pain appropriate for outpatient physical therapy",
+      conservativeTreatmentWeeks: 0,
+      priorTherapy: "Physical therapy evaluation completed",
+      documentationComplete: true,
+    },
+    claim: { status: "paid", rejectionReason: null, history: ["Claim approved", "Payment issued"] },
+    priorAuthorization: { submitted: false, status: "not_required" },
+    conflicts: [],
   },
 ];
 
@@ -362,42 +379,22 @@ const perspectiveContextBuilders = {
       priorAuthorization: { status: scenario.priorAuthorization.status },
     };
   },
-  "prior-auth"(scenario, related) {
-    return {
-      conflicts: scenario.conflicts,
-      request: { requestId: `PA-${scenario.id.toUpperCase()}`, submitted: scenario.priorAuthorization.submitted },
-      member: related.member,
-      plan: related.plan,
-      provider: related.provider,
-      service: scenario.service,
-      diagnosis: scenario.diagnosis,
-      clinicalEvidence: {
-        symptoms: scenario.clinical.symptoms,
-        priorTherapy: scenario.clinical.priorTherapy,
-        conservativeTreatmentWeeks: scenario.clinical.conservativeTreatmentWeeks,
-      },
-      claimHistory: scenario.claim.history,
-      serviceDate: scenario.serviceDate,
-    };
-  },
-  "customer-service"(scenario, related) {
+  broker(scenario, related) {
     return {
       conflicts: scenario.conflicts,
       member: { id: related.member.id, name: related.member.name },
-      plan: { id: related.plan.id, name: related.plan.name },
+      plan: { id: related.plan.id, name: related.plan.name, network: related.plan.network },
+      service: scenario.service,
+      diagnosis: scenario.diagnosis,
       claim: related.claim,
       benefits: scenario.benefits,
-      service: scenario.service,
+      enrollmentRecord: scenario.enrollment,
+      eligibilityEvidence: scenario.enrollment,
+      priorAuthorization: scenario.priorAuthorization,
       serviceDate: scenario.serviceDate,
-      policySummary: {
-        policyId: related.policy.policyId,
-        covered: related.policy.covered,
-        priorAuthorization: related.policy.priorAuthorization,
-      },
-      relevantHistory: scenario.claim.history,
     };
   },
-  enrollment(scenario, related) {
+  employer(scenario, related) {
     return {
       member: related.member,
       plan: related.plan,
@@ -428,6 +425,12 @@ function createEvidence(scenario, related) {
       kind: "eligibility",
       label: "Member eligibility",
       detail: `${scenario.enrollment.status} ${scenario.enrollment.effectiveFrom} → ${scenario.enrollment.effectiveTo}`,
+    },
+    {
+      id: `${scenario.planId}-plan`,
+      kind: "plan",
+      label: "Active plan",
+      detail: `${related.plan.name} (${related.plan.metal}, ${related.plan.network})`,
     },
     {
       id: `${scenario.id}-diagnosis`,
@@ -516,6 +519,13 @@ export function getPerspectiveById(perspectiveId) {
 export function getQuestionById(perspectiveId, questionId) {
   const perspective = getPerspectiveById(perspectiveId);
   return perspective.questions.find((item) => item.id === questionId) || perspective.questions[0];
+}
+
+export function getQuestionsByDecisionType(decisionType) {
+  return perspectives.flatMap((perspective) => {
+    const question = perspective.questions.find((item) => item.decisionType === decisionType);
+    return question ? [{ perspective, question }] : [];
+  });
 }
 
 export function getRequestParts({ perspectiveId, questionId, scenarioId }) {

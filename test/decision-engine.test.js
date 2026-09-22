@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildDecisionRequest } from "../public/app/catalog.js";
-import { evaluateDecisionRequest, safeDecisionFallback, validateDecisionResult } from "../public/app/decision-engine.js";
+import { evaluateDecisionRequest, validateDecisionResult } from "../public/app/decision-engine.js";
 
 test("scenario A coverage is covered with prior auth next action", () => {
   const request = buildDecisionRequest({
@@ -16,6 +16,20 @@ test("scenario A coverage is covered with prior auth next action", () => {
   assert.equal(result.status, "determined");
   assert.equal(result.nextAction, "Submit prior authorization");
   assert.ok(result.evidence.length >= 3);
+});
+
+test("member coverage uses the clinical evidence supplied to Laya", () => {
+  const request = buildDecisionRequest({
+    perspectiveId: "member",
+    questionId: "member-coverage",
+    scenarioId: "scenario-a",
+  });
+
+  const result = evaluateDecisionRequest(request, { model: "test-model" });
+
+  assert.equal(result.decision, "covered");
+  assert.equal(result.status, "determined");
+  assert.match(result.findings.find((item) => item.criterion.includes("Conservative treatment")).detail, /8 weeks/);
 });
 
 test("scenario B coverage returns insufficient evidence for missing treatment duration", () => {
@@ -48,8 +62,8 @@ test("scenario C coverage is not covered for excluded service", () => {
 
 test("scenario D eligibility is not eligible when enrollment ended", () => {
   const request = buildDecisionRequest({
-    perspectiveId: "enrollment",
-    questionId: "enrollment-eligible",
+    perspectiveId: "member",
+    questionId: "member-eligibility",
     scenarioId: "scenario-d",
   });
 
@@ -59,10 +73,23 @@ test("scenario D eligibility is not eligible when enrollment ended", () => {
   assert.equal(result.status, "determined");
 });
 
+test("scenario D coverage is constrained by terminated eligibility", () => {
+  const request = buildDecisionRequest({
+    perspectiveId: "provider",
+    questionId: "provider-coverage",
+    scenarioId: "scenario-d",
+  });
+
+  const result = evaluateDecisionRequest(request, { model: "test-model" });
+  assert.equal(result.decision, "not_covered");
+  assert.equal(result.status, "determined");
+  assert.match(result.explanation, /enrollment ended/i);
+});
+
 test("scenario E routes uncertain coverage to human review", () => {
   const request = buildDecisionRequest({
-    perspectiveId: "customer-service",
-    questionId: "cs-coverage",
+    perspectiveId: "broker",
+    questionId: "broker-coverage",
     scenarioId: "scenario-e",
   });
 
@@ -70,6 +97,19 @@ test("scenario E routes uncertain coverage to human review", () => {
 
   assert.equal(result.decision, "human_review");
   assert.equal(result.status, "uncertain");
+});
+
+test("member next step for an excluded service is a concrete choice", () => {
+  const request = buildDecisionRequest({
+    perspectiveId: "member",
+    questionId: "member-next-step",
+    scenarioId: "scenario-c",
+  });
+
+  const result = evaluateDecisionRequest(request, { model: "test-model" });
+  assert.equal(request.decision.type, "next_action");
+  assert.equal(result.decision, "discuss_alternatives");
+  assert.match(result.nextAction, /covered alternatives/i);
 });
 
 test("validation rejects unknown evidence references", () => {
@@ -102,18 +142,4 @@ test("validation rejects unknown evidence references", () => {
       ),
     /unknown evidence/i,
   );
-});
-
-test("fallback returns safe human review routing for invalid remote output", () => {
-  const request = buildDecisionRequest({
-    perspectiveId: "prior-auth",
-    questionId: "pa-human-review",
-    scenarioId: "scenario-e",
-  });
-
-  const result = safeDecisionFallback(request, new Error("malformed JSON"), { provider: "ollama", model: "local-model" });
-
-  assert.equal(result.decision, "review_required");
-  assert.equal(result.status, "uncertain");
-  assert.equal(result.provider, "ollama");
 });
