@@ -30,6 +30,23 @@ npm start
 
 Then open `http://localhost:3000`.
 
+## Deploy on Fly.io
+
+This repo now includes:
+
+- `Dockerfile` for a containerized deployment
+- `fly.toml` with HTTP service and health check configuration
+- `/healthz` for Fly health checks
+
+Deploy with:
+
+```bash
+fly launch --copy-config --no-deploy
+fly deploy
+```
+
+If the default Fly app name in `fly.toml` is already taken, update the `app` value before deploying.
+
 ## Test
 
 ```bash
@@ -76,6 +93,13 @@ OPENAI_COMPAT_MODEL=local-model \
 OPENAI_COMPAT_API_KEY=optional-key \
 npm start
 ```
+
+## Screenshots
+
+Screenshots for the portal experience are stored in `screenshots/`:
+
+- `screenshots/portal-overview.png`
+- `screenshots/portal-compare.png`
 
 ## Safety framing
 

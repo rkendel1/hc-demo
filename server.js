@@ -62,6 +62,10 @@ const server = createServer(async (request, response) => {
       return json(response, 200, decisionService.describe());
     }
 
+    if (request.method === "GET" && url.pathname === "/healthz") {
+      return json(response, 200, { ok: true });
+    }
+
     if (request.method === "POST" && url.pathname === "/api/decide") {
       const body = await readBody(request);
       const result = await decisionService.decide(body.request);
