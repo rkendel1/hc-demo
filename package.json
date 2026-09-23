@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test --test-concurrency=1"
+    "test": "node --test --test-concurrency=1",
+    "validate:native": "node scripts/validate-native-compatibility.mjs"
   },
   "dependencies": {
     "@rust-ml-runtime/node": "0.2.0"

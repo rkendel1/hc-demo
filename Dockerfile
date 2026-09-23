@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci --include=optional
+RUN npm run validate:native
 
 COPY . .
 

@@ -91,6 +91,19 @@ npm test
 
 Unit tests verify healthcare-to-Laya request preparation and typed output interpretation. When Laya is installed under `ML_RUNTIME_MODEL_DIR` or `.models`, the integration test starts the real portal, calls its decision endpoint, executes the installed Laya model through `rust-ml-runtime` and Core ML, and validates the structured API result. It does not replace inference with a fixture.
 
+## Linux native compatibility
+
+Linux production uses the Debian 12 (Bookworm) glibc 2.36 baseline. The native package must be built for Linux x64 in a compatible environment and must not require newer `GLIBC_*` symbols. The `validate:native` release gate inspects the complete native package contents with ELF metadata, loads the actual installed platform package, and fails before deployment when the binding cannot load.
+
+Run the same validation locally on Linux after installing optional dependencies:
+
+```bash
+npm ci --include=optional
+npm run validate:native
+```
+
+The compatibility workflow runs this check in the pinned Bookworm environment. It validates the package selected by npm rather than a native binary from the source tree.
+
 ## Failure behavior
 
 The application fails closed for missing models, integrity errors, runtime failures, invalid model output, and invalid decision schemas. Missing or conflicting healthcare evidence remains an explicit insufficient-evidence or human-review result; it is never silently forced into yes/no and never sent to a cloud fallback.
