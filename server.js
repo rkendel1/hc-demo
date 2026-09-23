@@ -90,8 +90,18 @@ server.listen(port, "0.0.0.0", () => {
   console.log(`Jev Healthcare Decision Portal running at http://localhost:${port}`);
   decisionService.ready().then(() => {
     const runtimeDescription = decisionService.describe();
+    console.log(`rust-ml-runtime: platform ${runtimeDescription.platform}`);
+    console.log(`rust-ml-runtime: native binding ${runtimeDescription.nativeBinding}`);
+    console.log(`rust-ml-runtime: status ${runtimeDescription.nativeBindingStatus}`);
     console.log(`Local inference ready: ${runtimeDescription.modelName} · ${runtimeDescription.backend} · ${runtimeDescription.modelIdentifier}`);
-  }).catch((error) => console.error(`Local inference unavailable: ${error.message}`));
+  }).catch((error) => {
+    const runtimeDescription = decisionService.describe();
+    console.error(`rust-ml-runtime: platform ${runtimeDescription.platform}`);
+    console.error(`rust-ml-runtime: native binding ${runtimeDescription.nativeBinding}`);
+    console.error(`rust-ml-runtime: status ${runtimeDescription.nativeBindingStatus}`);
+    console.error(`Local inference unavailable: ${error.message}`);
+    process.exitCode = 1;
+  });
 });
 
 server.on("error", (error) => {

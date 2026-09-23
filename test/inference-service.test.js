@@ -4,6 +4,18 @@ import { buildDecisionRequest } from "../public/app/catalog.js";
 import { prepareLayaRequest } from "../public/app/context-preparation.js";
 import { HealthcareDecisionService } from "../src/inference-service.js";
 
+test("reports the selected native runtime binding", () => {
+  const service = new HealthcareDecisionService({
+    status: "Installed",
+    description: { backend: "coreml", identifier: "test-laya" },
+  });
+  const description = service.describe();
+
+  assert.equal(description.platform, `${process.platform}-${process.arch}`);
+  assert.equal(description.nativeBinding, `@rust-ml-runtime/node-${process.platform}-${process.arch}${process.platform === "linux" ? "-gnu" : process.platform === "win32" ? "-msvc" : ""}`);
+  assert.equal(description.nativeBindingStatus, "loaded");
+});
+
 test("hard eligibility evidence overrides a conflicting Laya coverage suggestion", async () => {
   let receivedRuntimeRequest;
   const inference = {
