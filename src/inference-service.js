@@ -32,6 +32,10 @@ const authoritativeDecisionTypes = new Set([
   "next_action",
 ]);
 
+function nativeBindingPackage() {
+  return `@rust-ml-runtime/node-${process.platform}-${process.arch}${process.platform === "linux" ? "-gnu" : process.platform === "win32" ? "-msvc" : ""}`;
+}
+
 function invalidOverride(message) {
   const error = new Error(message);
   error.statusCode = 400;
@@ -132,6 +136,9 @@ export class HealthcareDecisionService {
       modelName: "Laya",
       runtime: "rust-ml-runtime",
       execution: "Local",
+      platform: `${process.platform}-${process.arch}`,
+      nativeBinding: nativeBindingPackage(),
+      nativeBindingStatus: description ? "loaded" : this.inference?.status === "Unavailable" ? "unavailable" : "loading",
       backend: description?.backend || "Core ML",
       modelStatus: this.inference?.status || "Unavailable",
       modelIdentifier: description?.identifier || "laya",
