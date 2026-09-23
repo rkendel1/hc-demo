@@ -93,9 +93,9 @@ Unit tests verify healthcare-to-Laya request preparation and typed output interp
 
 ## Linux native compatibility
 
-Linux production temporarily uses the official Node 22 Debian 13 (Trixie) image. The currently published `@rust-ml-runtime/node-linux-x64-gnu` 0.2.0 artifact requires glibc 2.39 or newer; Trixie's runtime baseline satisfies that requirement. The Docker build prints the actual Node and glibc versions rather than assuming them. The `validate:native` release gate derives the active glibc baseline from Node, inspects the complete installed native package with ELF metadata, loads it, and fails before deployment when the binding is incompatible.
+Linux production uses the official Node 22 Debian 13 (Trixie) image with `@rust-ml-runtime/node-linux-x64-gnu` 0.2.3. The Docker build prints the actual Node and glibc versions rather than assuming them. The `validate:native` release gate derives the active glibc baseline from Node, inspects the complete installed native package with ELF metadata, loads it, and fails before deployment when the binding is incompatible.
 
-The build also runs `smoke:native`, which resolves the installed platform binding and initializes the same runtime facade and model configuration used by the application. The Laya distribution is intentionally not copied into the image or downloaded during construction. When `ML_RUNTIME_MODEL_DIR` is configured and available, the smoke test also loads that model; otherwise model loading remains an application-startup check.
+The build installs the matching verified `ml-runtime` release CLI, provisions the pinned Linux Laya ONNX distribution into `/app/models`, and verifies it with `ml-runtime model doctor laya`. That directory is copied explicitly into the final stage and selected with `ML_RUNTIME_MODEL_DIR`. The subsequent `smoke:native` check resolves the installed platform binding and loads Laya through the same runtime configuration used by the application. Model downloads happen only during image construction; application startup is offline and deterministic.
 
 Run the same validation locally on Linux after installing optional dependencies:
 
@@ -105,7 +105,7 @@ npm run validate:native
 npm run smoke:native
 ```
 
-The compatibility workflow runs these checks in the pinned Trixie environment. It validates the package selected by npm rather than a native binary from the source tree. Restoring the smaller Bookworm/glibc 2.36 baseline remains the responsibility of a portable native artifact release from the `rust-ml-runtime` repository; this image change is only a deployment bridge.
+The compatibility workflow runs these checks in the pinned Trixie environment. It validates the package selected by npm rather than a native binary from the source tree.
 
 ## Failure behavior
 

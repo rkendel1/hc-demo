@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { buildDecisionRequest } from "../public/app/catalog.js";
 
 const modelRoot = process.env.ML_RUNTIME_MODEL_DIR || resolve(".models");
+const expectedBackend = process.platform === "linux" ? "onnx" : "coreml";
 let installed = true;
 try {
   await access(resolve(modelRoot, "laya"));
@@ -76,10 +77,10 @@ test("portal endpoint executes through rust-ml-runtime and real local Laya", { s
   assert.equal(result.status, "determined");
   assert.equal(result.model, "Laya");
   assert.equal(result.provider, "rust-ml-runtime");
-  assert.equal(result.runtime.backend, "coreml");
+  assert.equal(result.runtime.backend, expectedBackend);
   assert.equal(result.runtime.execution, "Local");
   assert.equal(result.modelDecision.kind, "noul");
-  assert.equal(result.inferenceResponse.backend, "coreml");
+  assert.equal(result.inferenceResponse.backend, expectedBackend);
   assert.equal(result.inferenceResponse.model.identifier, result.runtime.modelIdentifier);
   assert.equal(result.inferenceResponse.provenance.artifactSha256, result.runtime.artifactChecksum);
   assert.ok(result.inferenceResponse.execution.latency);

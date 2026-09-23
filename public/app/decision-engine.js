@@ -520,9 +520,12 @@ function planSelectionAssessment(request) {
   result.evidence = [...eligibility.evidence];
 
   if (eligibility.decision !== "eligible") {
+    const planName = request.context.plan?.name || request.rules.plan?.name || "The plan on record";
+    const serviceDate = request.context.serviceDate;
+    const enrollmentEnd = request.context.eligibilityEvidence?.effectiveTo || request.context.enrollmentRecord?.effectiveTo;
     result.decision = "no_applicable_plan";
     result.nextAction = eligibility.nextAction;
-    result.explanation = "No plan applies on the service date because the member is not actively enrolled.";
+    result.explanation = `${planName} is the plan on record, but it is not active on ${serviceDate}. Enrollment ended on ${enrollmentEnd}.`;
     return result;
   }
 

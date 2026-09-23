@@ -152,7 +152,15 @@ export class HealthcareDecisionService {
     validateDecisionRequest(request);
     if (!this.inference) throw runtimeUnavailable(this.initializationError || "runtime failed to initialize");
 
-    const prepared = prepareLayaRequest(request);
+    const evidenceAssessment = evaluateDecisionRequest(request, { model: "Laya", provider: "rust-ml-runtime" });
+    const preserveGuardrail =
+      evidenceAssessment.status !== "determined" ||
+      constrainedOutcomes.has(evidenceAssessment.decision) ||
+      authoritativeDecisionTypes.has(request.decision.type);
+    const prepared = prepareLayaRequest(request, {
+      assessment: evidenceAssessment,
+      constrainToAssessment: preserveGuardrail,
+    });
     if (inferenceRequestOverride !== undefined) {
       prepared.runtimeRequest = validateInferenceOverride(inferenceRequestOverride, prepared.runtimeRequest);
     }
@@ -166,11 +174,6 @@ export class HealthcareDecisionService {
     // Healthcare rules and evidence completeness remain application-owned. Laya
     // supplies the bounded judgment; the application refuses to turn missing or
     // conflicting evidence into a forced yes/no result.
-    const evidenceAssessment = evaluateDecisionRequest(request, { model: "Laya", provider: "rust-ml-runtime" });
-    const preserveGuardrail =
-      evidenceAssessment.status !== "determined" ||
-      constrainedOutcomes.has(evidenceAssessment.decision) ||
-      authoritativeDecisionTypes.has(request.decision.type);
     const decision = preserveGuardrail ? evidenceAssessment.decision : local.decision;
     const status = preserveGuardrail ? evidenceAssessment.status : "determined";
     const explanation = preserveGuardrail
@@ -203,6 +206,8 @@ export class HealthcareDecisionService {
         finalDecision: decision,
         modelOverridden: local.decision !== decision,
         source: preserveGuardrail ? "healthcare_rules_and_evidence" : "laya",
+        reason: local.decision !== decision ? evidenceAssessment.explanation : "The model recommendation and final determination agree.",
+        constrained: preserveGuardrail,
       },
       inferenceResponse: {
         model: local.result.model,

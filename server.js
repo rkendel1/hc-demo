@@ -87,6 +87,9 @@ const server = createServer(async (request, response) => {
 async function start() {
   console.log("Loading local Laya model through rust-ml-runtime…");
   decisionService = createDecisionService(process.env);
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Jev Healthcare Decision Portal running at http://localhost:${port}`);
+  });
   try {
     await decisionService.ready();
     const runtimeDescription = decisionService.describe();
@@ -101,12 +104,9 @@ async function start() {
     console.error(`rust-ml-runtime: status ${runtimeDescription.nativeBindingStatus}`);
     console.error(`Local inference unavailable: ${error.message}`);
     process.exitCode = 1;
+    server.close();
     return;
   }
-
-  server.listen(port, "0.0.0.0", () => {
-    console.log(`Jev Healthcare Decision Portal running at http://localhost:${port}`);
-  });
 }
 
 server.on("error", (error) => {

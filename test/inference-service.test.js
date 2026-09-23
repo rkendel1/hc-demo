@@ -55,4 +55,5 @@ test("hard eligibility evidence overrides a conflicting Laya coverage suggestion
   assert.equal(result.resolution.modelSuggestion, "covered");
   assert.equal(result.resolution.modelOverridden, true);
   assert.equal(result.resolution.source, "healthcare_rules_and_evidence");
+  assert.match(result.resolution.reason, /enrollment ended/i);
 });

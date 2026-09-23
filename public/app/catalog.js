@@ -429,7 +429,7 @@ function createEvidence(scenario, related) {
     {
       id: `${scenario.planId}-plan`,
       kind: "plan",
-      label: "Active plan",
+      label: "Plan on member record",
       detail: `${related.plan.name} (${related.plan.metal}, ${related.plan.network})`,
     },
     {

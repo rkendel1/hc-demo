@@ -102,7 +102,7 @@ function renderCaseSummary() {
     </div>
     <div class="key-grid">
       <div title="${escapeHtml(scenario.related.member.name)}"><span>Member</span><strong>${escapeHtml(scenario.related.member.name)}</strong></div>
-      <div title="${escapeHtml(scenario.related.plan.name)}"><span>Plan</span><strong>${escapeHtml(scenario.related.plan.name)}</strong></div>
+      <div title="${escapeHtml(scenario.related.plan.name)}"><span>Plan on record</span><strong>${escapeHtml(scenario.related.plan.name)}</strong></div>
       <div title="${escapeHtml(scenario.service.label)}"><span>Service</span><strong>${escapeHtml(scenario.service.label)}</strong></div>
       <div title="${escapeHtml(scenario.diagnosis.code)}"><span>Diagnosis</span><strong>${escapeHtml(scenario.diagnosis.code)}</strong></div>
       <div title="${escapeHtml(scenario.related.provider.name)}"><span>Provider</span><strong>${escapeHtml(scenario.related.provider.name)}</strong></div>
@@ -188,15 +188,24 @@ function renderResult() {
       </section>
       <section class="model-output-card">
         <div class="model-output-heading">
-          <div><span class="model-kicker">Laya model output</span><strong>${escapeHtml(String(selectedValue ?? result.decision).replaceAll("_", " "))}${resolution.modelSuggestion ? ` → ${escapeHtml(formatDecisionLabel(resolution.modelSuggestion))}` : ""}</strong>${resolution.modelOverridden ? `<small class="override-label">Overridden by supplied rules &amp; evidence</small>` : ""}</div>
+          <div>
+            <span class="model-kicker">${resolution.constrained ? "Rules-constrained model execution" : "Advisory model recommendation"}</span>
+            <strong>${escapeHtml(formatDecisionLabel(resolution.modelSuggestion || selectedValue || result.decision))}</strong>
+            ${resolution.modelOverridden
+              ? `<span class="model-disposition rejected">Not applied</span><small class="override-label"><b>Final determination: ${escapeHtml(decisionLabel)}</b>${escapeHtml(resolution.reason || result.explanation)}</small>`
+              : `<span class="model-disposition accepted">Applied</span><small class="agreement-label">${resolution.constrained ? "Only outcome admitted by deterministic evidence gates" : "Matches the final determination"}</small>`}
+          </div>
           <span class="model-kind">${escapeHtml(modelDecision.kind || "typed decision")}</span>
         </div>
-        <div class="probability-list">
-          ${probabilities.map(([label, probability]) => `
-            <div class="probability-item ${selectedProbabilityLabel === label ? "selected" : ""}">
-              <div><span>${escapeHtml(label.replaceAll("_", " "))}</span><strong>${formatProbability(probability)}</strong></div>
-              <div class="probability-track"><i style="width:${Math.max(0, Math.min(100, probability * 100))}%"></i></div>
-            </div>`).join("")}
+        <div class="model-probabilities">
+          <span class="model-kicker">${resolution.constrained ? "Admissible outcome distribution" : "Model probability distribution"}</span>
+          <div class="probability-list">
+            ${probabilities.map(([label, probability]) => `
+              <div class="probability-item ${selectedProbabilityLabel === label ? "selected" : ""}">
+                <div><span>${escapeHtml(label.replaceAll("_", " "))}</span><strong>${formatProbability(probability)}</strong></div>
+                <div class="probability-track"><i style="width:${Math.max(0, Math.min(100, probability * 100))}%"></i></div>
+              </div>`).join("")}
+          </div>
         </div>
         <div class="model-metadata">
           <span>Action <strong>${formatProbability(modelDecision.action_probability)}</strong></span>

@@ -19,6 +19,10 @@ test("production install keeps runtime optional native bindings", async () => {
   assert.match(dockerfile, /FROM node:22-trixie-slim AS native-validation/);
   assert.match(dockerfile, /FROM node:22-trixie-slim AS runtime/);
   assert.match(dockerfile, /COPY --from=native-validation \/app\/node_modules \.\/node_modules/);
+  assert.match(dockerfile, /ML_RUNTIME_MODEL_DIR=\/app\/models/);
+  assert.match(dockerfile, /ml-runtime model install laya/);
+  assert.match(dockerfile, /ml-runtime model doctor laya/);
+  assert.match(dockerfile, /COPY --from=native-validation \/app\/models \.\/models/);
   assert.match(dockerfile, /npm run smoke:native/);
   assert.match(workflow, /node:22-trixie-slim/);
   assert.match(workflow, /npm ci --include=optional/);

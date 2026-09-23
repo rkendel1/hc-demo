@@ -73,6 +73,21 @@ test("scenario D eligibility is not eligible when enrollment ended", () => {
   assert.equal(result.status, "determined");
 });
 
+test("scenario D plan selection distinguishes the recorded plan from the active plan", () => {
+  const request = buildDecisionRequest({
+    perspectiveId: "employer",
+    questionId: "employer-plan",
+    scenarioId: "scenario-d",
+  });
+
+  const result = evaluateDecisionRequest(request, { model: "test-model" });
+
+  assert.equal(result.decision, "no_applicable_plan");
+  assert.match(result.explanation, /Northstar Gold Plus is the plan on record/i);
+  assert.match(result.explanation, /not active on 2026-07-15/i);
+  assert.match(result.explanation, /ended on 2026-06-30/i);
+});
+
 test("scenario D coverage is constrained by terminated eligibility", () => {
   const request = buildDecisionRequest({
     perspectiveId: "provider",
