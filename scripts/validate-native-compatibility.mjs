@@ -4,11 +4,16 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 const require = createRequire(import.meta.url);
-const baseline = process.env.RUST_ML_GLIBC_BASELINE || "2.36";
+const runtimeGlibc = process.report.getReport().header.glibcVersionRuntime;
+const baseline = process.env.RUST_ML_GLIBC_BASELINE || runtimeGlibc;
 const packageName = `@rust-ml-runtime/node-${process.platform}-${process.arch}${process.platform === "linux" ? "-gnu" : process.platform === "win32" ? "-msvc" : ""}`;
 
 if (process.platform !== "linux" || process.arch !== "x64") {
   throw new Error(`Linux x64 compatibility validation must run on Linux x64, got ${process.platform}-${process.arch}`);
+}
+
+if (!baseline) {
+  throw new Error("Could not determine the container glibc version");
 }
 
 const manifestPath = require.resolve(`${packageName}/package.json`);
@@ -52,7 +57,7 @@ if (!diagnostics.available) {
   throw new Error(`native binding failed to load: ${diagnostics.error?.message || "unknown loader error"}`);
 }
 
-console.log(`Validated ${packageName} against glibc ${baseline}`);
+console.log(`native compatibility: PASS (${packageName}, glibc ${baseline})`);
 console.log(`rust-ml-runtime: package resolved ${diagnostics.packageResolved}`);
 console.log(`rust-ml-runtime: native binary ${diagnostics.nativeBinary}`);
 console.log("rust-ml-runtime: load success");

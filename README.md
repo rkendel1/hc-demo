@@ -93,16 +93,19 @@ Unit tests verify healthcare-to-Laya request preparation and typed output interp
 
 ## Linux native compatibility
 
-Linux production uses the Debian 12 (Bookworm) glibc 2.36 baseline. The native package must be built for Linux x64 in a compatible environment and must not require newer `GLIBC_*` symbols. The `validate:native` release gate inspects the complete native package contents with ELF metadata, loads the actual installed platform package, and fails before deployment when the binding cannot load.
+Linux production temporarily uses the official Node 22 Debian 13 (Trixie) image. The currently published `@rust-ml-runtime/node-linux-x64-gnu` 0.2.0 artifact requires glibc 2.39 or newer; Trixie's runtime baseline satisfies that requirement. The Docker build prints the actual Node and glibc versions rather than assuming them. The `validate:native` release gate derives the active glibc baseline from Node, inspects the complete installed native package with ELF metadata, loads it, and fails before deployment when the binding is incompatible.
+
+The build also runs `smoke:native`, which resolves the installed platform binding and initializes the same runtime facade and model configuration used by the application. The Laya distribution is intentionally not copied into the image or downloaded during construction. When `ML_RUNTIME_MODEL_DIR` is configured and available, the smoke test also loads that model; otherwise model loading remains an application-startup check.
 
 Run the same validation locally on Linux after installing optional dependencies:
 
 ```bash
 npm ci --include=optional
 npm run validate:native
+npm run smoke:native
 ```
 
-The compatibility workflow runs this check in the pinned Bookworm environment. It validates the package selected by npm rather than a native binary from the source tree.
+The compatibility workflow runs these checks in the pinned Trixie environment. It validates the package selected by npm rather than a native binary from the source tree. Restoring the smaller Bookworm/glibc 2.36 baseline remains the responsibility of a portable native artifact release from the `rust-ml-runtime` repository; this image change is only a deployment bridge.
 
 ## Failure behavior
 

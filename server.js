@@ -84,25 +84,30 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, "0.0.0.0", () => {
+async function start() {
   console.log("Loading local Laya model through rust-ml-runtime…");
   decisionService = createDecisionService(process.env);
-  console.log(`Jev Healthcare Decision Portal running at http://localhost:${port}`);
-  decisionService.ready().then(() => {
+  try {
+    await decisionService.ready();
     const runtimeDescription = decisionService.describe();
     console.log(`rust-ml-runtime: platform ${runtimeDescription.platform}`);
     console.log(`rust-ml-runtime: native binding ${runtimeDescription.nativeBinding}`);
     console.log(`rust-ml-runtime: status ${runtimeDescription.nativeBindingStatus}`);
     console.log(`Local inference ready: ${runtimeDescription.modelName} · ${runtimeDescription.backend} · ${runtimeDescription.modelIdentifier}`);
-  }).catch((error) => {
+  } catch (error) {
     const runtimeDescription = decisionService.describe();
     console.error(`rust-ml-runtime: platform ${runtimeDescription.platform}`);
     console.error(`rust-ml-runtime: native binding ${runtimeDescription.nativeBinding}`);
     console.error(`rust-ml-runtime: status ${runtimeDescription.nativeBindingStatus}`);
     console.error(`Local inference unavailable: ${error.message}`);
     process.exitCode = 1;
+    return;
+  }
+
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Jev Healthcare Decision Portal running at http://localhost:${port}`);
   });
-});
+}
 
 server.on("error", (error) => {
   if (error.code === "EADDRINUSE") {
@@ -112,3 +117,5 @@ server.on("error", (error) => {
   }
   process.exitCode = 1;
 });
+
+start();

@@ -15,7 +15,13 @@ test("production install keeps runtime optional native bindings", async () => {
   assert.deepEqual(lockfile.packages[""].dependencies, { "@rust-ml-runtime/node": "0.2.0" });
   assert.match(dockerfile, /npm ci --include=optional/);
   assert.match(dockerfile, /npm run validate:native/);
-  assert.match(workflow, /node:22-bookworm-slim/);
+  assert.match(dockerfile, /node:22-trixie-slim/);
+  assert.match(dockerfile, /FROM node:22-trixie-slim AS native-validation/);
+  assert.match(dockerfile, /FROM node:22-trixie-slim AS runtime/);
+  assert.match(dockerfile, /COPY --from=native-validation \/app\/node_modules \.\/node_modules/);
+  assert.match(dockerfile, /npm run smoke:native/);
+  assert.match(workflow, /node:22-trixie-slim/);
   assert.match(workflow, /npm ci --include=optional/);
   assert.match(workflow, /npm run validate:native/);
+  assert.match(workflow, /npm run smoke:native/);
 });

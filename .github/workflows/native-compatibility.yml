@@ -11,7 +11,7 @@ jobs:
   linux-native:
     runs-on: ubuntu-latest
     container:
-      image: node:22-bookworm-slim
+      image: node:22-trixie-slim
     steps:
       - uses: actions/checkout@v4
       - name: Install ELF validation tools
@@ -19,4 +19,6 @@ jobs:
       - name: Install the production package
         run: npm ci --include=optional
       - name: Validate the packaged native binding
-        run: npm run validate:native
+        run: node --version && ldd --version && npm run validate:native
+      - name: Smoke test the native runtime
+        run: npm run smoke:native

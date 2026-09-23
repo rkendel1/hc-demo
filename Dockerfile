@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim
+FROM node:22-trixie-slim AS native-validation
 
 WORKDIR /app
 
@@ -8,7 +8,17 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 RUN npm ci --include=optional
 COPY scripts ./scripts
-RUN npm run validate:native
+COPY src/runtime-config.js ./src/runtime-config.js
+RUN node --version \
+    && ldd --version \
+    && npm run validate:native
+RUN npm run smoke:native
+
+FROM node:22-trixie-slim AS runtime
+
+WORKDIR /app
+
+COPY --from=native-validation /app/node_modules ./node_modules
 
 COPY . .
 

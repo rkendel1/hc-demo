@@ -1,8 +1,7 @@
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { Worker } from "node:worker_threads";
 import { evaluateDecisionRequest, getDecisionTypeDefinition, validateDecisionRequest, validateDecisionResult } from "../public/app/decision-engine.js";
 import { interpretLayaDecision, prepareLayaRequest } from "../public/app/context-preparation.js";
+import { runtimeConfiguration } from "./runtime-config.js";
 
 const constrainedOutcomes = new Set([
   "not_covered",
@@ -66,7 +65,7 @@ function runtimeUnavailable(error) {
 }
 
 export class RustMlRuntimeInference {
-  constructor({ modelRoot } = {}) {
+  constructor({ modelName, modelRoot } = {}) {
     this.description = null;
     this.error = null;
     this.status = "Loading";
@@ -76,7 +75,7 @@ export class RustMlRuntimeInference {
       this.resolveReady = resolveReady;
       this.rejectReady = rejectReady;
     });
-    this.worker = new Worker(new URL("./runtime-worker.js", import.meta.url), { workerData: { modelRoot } });
+    this.worker = new Worker(new URL("./runtime-worker.js", import.meta.url), { workerData: { modelName, modelRoot } });
     this.worker.on("message", (message) => this.handleMessage(message));
     this.worker.on("error", (error) => this.fail(error));
     this.worker.on("exit", (code) => {
@@ -236,9 +235,7 @@ export class HealthcareDecisionService {
 export function createDecisionService(env, dependencies = {}) {
   if (dependencies.inference) return new HealthcareDecisionService(dependencies.inference);
   try {
-    const developmentModelRoot = resolve(".models");
-    const modelRoot = env.ML_RUNTIME_MODEL_DIR || (existsSync(developmentModelRoot) ? developmentModelRoot : undefined);
-    return new HealthcareDecisionService(new RustMlRuntimeInference({ modelRoot }));
+    return new HealthcareDecisionService(new RustMlRuntimeInference(runtimeConfiguration(env)));
   } catch (error) {
     return new HealthcareDecisionService(null, runtimeUnavailable(error));
   }

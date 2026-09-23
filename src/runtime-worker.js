@@ -4,7 +4,7 @@ import { parentPort, workerData } from "node:worker_threads";
 const { LocalDecisionModel } = runtimeNode;
 
 try {
-  const model = new LocalDecisionModel("laya", workerData.modelRoot);
+  const model = new LocalDecisionModel(workerData.modelName, workerData.modelRoot);
   parentPort.postMessage({ type: "ready", description: JSON.parse(model.descriptionJson()) });
   parentPort.on("message", ({ id, request }) => {
     try {
