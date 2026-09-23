@@ -11,7 +11,7 @@
     "smoke:native": "node scripts/smoke-test-native.mjs"
   },
   "dependencies": {
-    "@rust-ml-runtime/node": "0.2.0"
+    "@rust-ml-runtime/node": "0.2.3"
   },
   "repository": {
     "type": "git",
